@@ -17,22 +17,24 @@ from logutils import get_logger
 logger = get_logger("main")
 #due to the py5 library constraints
 #variables initialized in settings and setup must be declared as globals
+pg_frame_tiles = []
+frame_matrices = []
 def settings():
     py5.size(SIZE_W, SIZE_H, py5.P2D) #settings() allows passing variables to py.size() width and height.
 
 def setup():
     global collection, client, render_pg, pg_frame_tiles, frame_matrices
-    pg_frame_tiles = []
-    pg_files_tiles = []
-    frame_matrices = []
+
     #py5.create_graphics()
-    render_pg = py5.create_graphics(py5.width, py5.height)
+    render_pg = py5.create_graphics(SIZE_W, SIZE_H)
     client = get_chroma_client()
+    '''
     try:
         client.delete_collection(name=COLLECTION_NAME) # Delete a collection and all associated embeddings, documents, and metadata. ⚠️ This is destructive and not reversible
 
     except:
         logger.info("Couldn't delete previous collection. Creating a new one.")
+    '''
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hsnw:space":"l2"}        
@@ -44,26 +46,32 @@ def setup():
     printer("Files successfully processed and stored")
 
 def draw():
+    global frame_matrices, pg_frame_tiles
     #debug_setup(pg_frame_tiles)  
-    py5.image_mode(py5.CENTER)
+    #py5.image_mode(py5.CENTER)
     pg = rasterize(render_pg)
-    py5.image(pg, py5.width/2, py5.height/2)
+    #py5.image(pg, py5.width/2, py5.height/2)
     frame_name = f"data/output/{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_frame_count_{py5.frame_count}.png"
     pg.save(f"{os.path.join(frame_name)}")
 
-    if py5.frame_count < len(FILES)-1:
-        pg_frame_tiles, frame_matrices = initialize_frame([py5.frame_count+1], pg_frame_tiles, frame_matrices)
+    if py5.frame_count < len(FRAMES)-1:
+        pg_frame_tiles = []
+        frame_matrices = []
+        pg_frame_tiles, frame_matrices = initialize_frame(FRAMES[py5.frame_count], pg_frame_tiles, frame_matrices)
     logger.info(f"{py5.frame_count}")
+
 def printer(input):
     logger.info(f"{input}")
 
 def initialize_frame(frame, pg_frame_tiles, frame_matrices):
+
     frame = py5.load_image(frame)
-    resize_pg = py5.create_graphics(py5.width, py5.height, py5.P2D)
+    resize_pg = py5.create_graphics(SIZE_W, SIZE_H, py5.P2D)
     resize_pg.begin_draw()
-    resize_pg.image(frame, 0, 0, py5.width, py5.height)
+    resize_pg.image(frame, 0, 0, SIZE_W, SIZE_H)
     resize_pg.end_draw()
     frame = resize_pg
+
     for y in range(0, SIZE_H, TILE_H):    
         for x in range(0, SIZE_W, TILE_W):
             tile = frame.get_pixels(int(x), int(y), TILE_W, TILE_H)
@@ -148,12 +156,12 @@ def euclidean_distance(frame_matrix): #for each frame tile, get the closest file
     '''    
     #logger.info(f"query color={results['ids']}")        
            
-    return index
+    return results["ids"]
 
 def debug_setup(pg_frame_tiles):
     index = 0
-    for y in range(0, py5.height, TILE_H):
-        for x in range(0, py5.width, TILE_W):
+    for y in range(0, SIZE_H, TILE_H):
+        for x in range(0, SIZE_W, TILE_W):
             py5.push_matrix()
             py5.translate(x, y)
             py5.image(pg_frame_tiles[index], 0, 0, TILE_W, TILE_H)
@@ -168,24 +176,27 @@ def store_matrix(index, matrix):
     #convert each color array into an absolute value
     collection.add(
                 embeddings = vector,
-                ids=[f"file_{index}"]
+                ids=[f"{index}"]
                 )
     logger.info("Matrix successfully stored")
 
 def rasterize(pg):
     frame_index = 0
-    for y in range(0, py5.height, TILE_H):
-        for x in range(0, py5.width, TILE_W):
+    for y in range(0, SIZE_H, TILE_H):
+        for x in range(0, SIZE_W, TILE_W):
+
             index = euclidean_distance(frame_matrices[frame_index])
+            logger.info(f"euclidean distance {index[0][0]}")
             pg.begin_draw()
             pg.push_matrix()
             pg.translate(x, y)
             #Reload file image and place
-            file = py5.load_image(FILES[index])
+            file = py5.load_image(FILES[int(index[0][0])])
             pg.image(file, 0, 0, TILE_W, TILE_H)
             pg.pop_matrix()
             pg.end_draw()
             frame_index = frame_index+1
+
     return pg        
 if __name__ == "__main__":
     py5.run_sketch()     
