@@ -1,5 +1,5 @@
 # Requirements
-chromadb and py5 are required. You can refer to the official py5 documentation the the installation of the latter. 
+chromadb & py5 libraries. You can refer to the official py5 documentation the the installation of the latter. 
 # Retrieval Augmented Rasterization 
 
 <h3>1.Set a resolution and a grid size in the config.json file</h3>
