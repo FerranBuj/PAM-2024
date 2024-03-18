@@ -4,5 +4,7 @@
     "matrix_x":8,
     "matrix_y":8,
     "tile_x":40,
-    "tile_y":60
+    "tile_y":60,
+    "api_key": "AIzaSyBJf9XS8jxBspkXHo8L0DltQfippCld2wg",
+    "search_engine_id":"d1d56bb262f8941d9"
 }

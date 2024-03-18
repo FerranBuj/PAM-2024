@@ -20,3 +20,5 @@ FILES = glob.glob(os.path.join("data/input/*"))
 SKETCH_PATH = os.getcwd()
 COLLECTION_PATH = os.path.join("chromadb/collection")
 COLLECTION_NAME = "color_matrix"
+API_KEY = config['api_key']
+SEARCH_ENGINE_ID = config['search_engine_id']

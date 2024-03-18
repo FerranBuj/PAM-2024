@@ -1,3 +1,4 @@
+import hashlib
 import requests
 from PIL import Image
 from io import BytesIO
@@ -5,8 +6,10 @@ import sqlite3
 import os
 
 # Setup your Google API key and Search Engine ID
-API_KEY = 'AIzaSyBJf9XS8jxBspkXHo8L0DltQfippCld2wg'
-SEARCH_ENGINE_ID = 'd1d56bb262f8941d9'
+from constants import(
+    API_KEY, 
+    SEARCH_ENGINE_ID 
+)
 
 def create_db_connection():
     """Establish a database connection and return the connection and cursor."""
@@ -22,9 +25,9 @@ def download_image(url):
         # Check if the response was successful (HTTP status code 200)
         if response.status_code == 200:
             img = Image.open(BytesIO(response.content))
-            if not os.path.exists('images'):
-                os.makedirs('images')
-            file_path = f'images/{url.split("/")[-1].split("?")[0]}'  # Remove query parameters from filename if any
+            if not os.path.exists('data/scraper'):
+                os.makedirs('data/scraper')
+            file_path = f'data/scraper/{url.split("/")[-1].split("?")[0]}'  # Remove query parameters from filename if any
             img.save(file_path)
             return file_path
         else:
@@ -34,7 +37,7 @@ def download_image(url):
         print(f"Error downloading or saving image from {url}: {e}")
         return None
 
-def search_and_store_images(query, conn, c, total_images=50):
+def search_and_store_images(query, conn, c, total_images=10000):
     """Search for images using Google Custom Search API and store them in the database."""
     num_results_per_query = 10  # Max number of results per query (check API limits)
     num_queries = total_images // num_results_per_query
@@ -55,5 +58,5 @@ def search_and_store_images(query, conn, c, total_images=50):
 # Establish database connection
 conn, c = create_db_connection()
 if __name__ == "__main__":
-    search_and_store_images('muk bang', conn, c)
+    search_and_store_images('food porn', conn, c)
     conn.close()
