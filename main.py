@@ -1,6 +1,7 @@
 import time
 import py5
 import os
+import glob
 from pathlib import Path
 from constants import(
         SIZE_W, SIZE_H,
@@ -11,6 +12,10 @@ from constants import(
         SKETCH_PATH, FRAMES, FILES,
         COLLECTION_NAME
 )
+
+import gradio as gr
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 from db_utils import get_chroma_client
 from logutils import get_logger
@@ -64,7 +69,6 @@ def printer(input):
     logger.info(f"{input}")
 
 def initialize_frame(frame, pg_frame_tiles, frame_matrices):
-
     frame = py5.load_image(frame)
     resize_pg = py5.create_graphics(SIZE_W, SIZE_H, py5.P2D)
     resize_pg.begin_draw()
@@ -197,6 +201,43 @@ def rasterize(pg):
             pg.end_draw()
             frame_index = frame_index+1
 
-    return pg        
+    return pg 
+
+# Function to find the most recent file in a directory
+def latest_file(path):
+    list_of_files = glob.glob(path) 
+    if not list_of_files:  # if list is empty
+        return None
+    latest_file = max(list_of_files, key=os.path.getctime)
+    return latest_file
+
+# Create a Gradio interface
+def start_rasterization():
+    # Return the path to the latest file in the `data/outputs` folder
+    latest_image = latest_file('data/outputs/*')
+    return latest_image, gr.update(value=[latest_image, latest_image])  # Example update
+
+# Setting up the Gradio interface
+with gr.Blocks() as gradio_interface:
+    with gr.Column():
+        SIZE_W = gr.Number(label="Width (size_w)", value=3840)
+        SIZE_H = gr.Number(label="Height (size_h)", value=2160)
+        MATRIX_X = gr.Number(label="Matrix X (matrix_x)", value=8)
+        MATRIX_Y = gr.Number(label="Matrix Y (matrix_y)", value=8)
+        TILE_X = gr.Number(label="Tile X (tile_x)", value=40)
+        TILE_Y = gr.Number(label="Tile Y (tile_y)", value=60)
+        start_button = gr.Button("Start Rasterization")
+        
+    
+    output_image = gr.Image(label="Output Image")
+    examples = gr.Examples(examples=[f"{FRAMES[0]}.jpg"], inputs=start_button, outputs=output_image, fn=lambda x: x)
+    
+    start_button.click(
+        fn=start_rasterization,
+        #inputs=[size_w, size_h, matrix_x, matrix_y, tile_x, tile_y, start_button],
+        outputs=output_image
+    )           
+
 if __name__ == "__main__":
-    py5.run_sketch()     
+    py5.run_sketch()
+    gradio_interface.launch()
