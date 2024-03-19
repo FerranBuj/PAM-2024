@@ -2,6 +2,8 @@ data
 chromadb/collection
 scraper
 config.json
+deprecated
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
