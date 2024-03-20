@@ -16,10 +16,11 @@ MATRIX_Y = config["matrix_y"]
 MATRIX_W = int(TILE_W/MATRIX_X)
 MATRIX_H = int(TILE_H/MATRIX_Y)
 FRAMES = glob.glob(os.path.join("data/frames/*"))
-FILES = glob.glob(os.path.join("data/input/*"))
-SKETCH_PATH = os.getcwd()
+FILES = glob.glob(os.path.join("data/downloads/*"))
 COLLECTION_PATH = os.path.join("chromadb/collection")
-COLLECTION_NAME = "color_matrix"
+OVERRIDE_ASPECT_RATIO = config["override_aspect_ratio"]
+COLLECTION_NAME = f"{TILE_X}{TILE_Y}{MATRIX_X}{MATRIX_Y}{OVERRIDE_ASPECT_RATIO}"
+
 API_KEY = config['api_key']
 SEARCH_ENGINE_ID = config['search_engine_id']
 WEBDRIVER = config["webdriver"]

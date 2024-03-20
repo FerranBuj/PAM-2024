@@ -9,8 +9,9 @@ from constants import(
         TILE_W, TILE_H,
         MATRIX_X, MATRIX_Y,
         MATRIX_W, MATRIX_H,
-        SKETCH_PATH, FRAMES, FILES,
-        COLLECTION_NAME
+        FRAMES, FILES,
+        COLLECTION_NAME,
+        OVERRIDE_ASPECT_RATIO
 )
 
 import gradio as gr
@@ -24,39 +25,44 @@ logger = get_logger("main")
 #variables initialized in settings and setup must be declared as globals
 pg_frame_tiles = []
 frame_matrices = []
+#files_in_use = []
+collection = None
 def settings():
-    py5.size(SIZE_W, SIZE_H, py5.P2D) #settings() allows passing variables to py.size() width and height.
+    py5.size(120, 1, py5.P2D) #settings() allows passing variables to py.size() width and height.
 
 def setup():
     global collection, client, render_pg, pg_frame_tiles, frame_matrices
 
-    #py5.create_graphics()
     render_pg = py5.create_graphics(SIZE_W, SIZE_H)
     client = get_chroma_client()
-    '''
-    try:
-        client.delete_collection(name=COLLECTION_NAME) # Delete a collection and all associated embeddings, documents, and metadata. ⚠️ This is destructive and not reversible
 
+    printer(f"\n-------------\n tiles_x:{TILE_X} tiles_y:{TILE_Y}\n matrix_x: {MATRIX_X} matrix_y: {MATRIX_Y} \n override_aspect_ratio: {OVERRIDE_ASPECT_RATIO}\n-------------")
+
+    try:
+        collection = client.get_collection(
+            name=COLLECTION_NAME,
+            metadata={"hsnw:space":"l2"}        
+        )
+        printer("Chroma collection found")
     except:
-        logger.info("Couldn't delete previous collection. Creating a new one.")
-    '''
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hsnw:space":"l2"}        
-    )
-    
+        printer("Chroma collection doesn't exist")
+        collection = client.create_collection(
+            name=COLLECTION_NAME,
+            metadata={"hsnw:space":"l2"}  
+        )
+        printer("Initalizing files")
+        initialize_file(FILES) #Initializes only one frame
+        printer("Files successfully processed and stored")    
+
+    printer("Initalizing frame")
     pg_frame_tiles, frame_matrices = initialize_frame(FRAMES[0], pg_frame_tiles, frame_matrices)
     printer("Frame successfully processed")
-    initialize_file(FILES) #Initializes only one frame
-    printer("Files successfully processed and stored")
+
 
 def draw():
     global frame_matrices, pg_frame_tiles
-    #debug_setup(pg_frame_tiles)  
-    #py5.image_mode(py5.CENTER)
     pg = rasterize(render_pg)
-    #py5.image(pg, py5.width/2, py5.height/2)
-    frame_name = f"data/output/{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_frame_count_{py5.frame_count}.png"
+    frame_name = f"data/output/{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
     pg.save(f"{os.path.join(frame_name)}")
 
     if py5.frame_count < len(FRAMES)-1:
@@ -65,7 +71,7 @@ def draw():
         pg_frame_tiles, frame_matrices = initialize_frame(FRAMES[py5.frame_count], pg_frame_tiles, frame_matrices)
     logger.info(f"{py5.frame_count}")
 
-def printer(input):
+def printer(input): #py5 settings() setup() & draw() workaround
     logger.info(f"{input}")
 
 def initialize_frame(frame, pg_frame_tiles, frame_matrices):
@@ -89,17 +95,40 @@ def initialize_frame(frame, pg_frame_tiles, frame_matrices):
 
 def initialize_file(files): #pg_files_tiles):
     file_index = 0
-    for file in files:
-        file = py5.load_image(file)
-        temp_pg = py5.create_graphics(TILE_W, TILE_H, py5.P2D)
-        temp_pg.begin_draw()
-        temp_pg.image(file, 0, 0, TILE_W, TILE_H)
-        temp_pg.end_draw()
-        #pg_files_tiles.append(temp_pg)
-        color_matrix(temp_pg, True, file_index)
-        file_index = file_index+1
-        #return pg_files_tiles
-                    
+    if OVERRIDE_ASPECT_RATIO:
+        for file in files:
+            file = py5.load_image(file)
+            temp_pg = py5.create_graphics(TILE_W, TILE_H, py5.P2D)
+            temp_pg.begin_draw()
+            temp_pg.image(file, 0, 0, TILE_W, TILE_H)
+            temp_pg.end_draw()
+            #pg_files_tiles.append(temp_pg)
+            color_matrix(temp_pg, True, file_index)
+            file_index = file_index+1
+            #return pg_files_tiles
+    else:
+        for file in files:
+            file = py5.load_image(file)
+            img_aspect_ratio = file.width / float(file.height)
+            tile_aspect_ratio = TILE_W / float(TILE_H)
+
+            if img_aspect_ratio > tile_aspect_ratio:
+                scale_factor = TILE_W / float(file.width)
+            else:
+                scale_factor = TILE_H / float(file.height)
+            
+            scaled_width = int(file.width * scale_factor)
+            scaled_height = int(file.height * scale_factor)
+            temp_pg = py5.create_graphics(TILE_W, TILE_H, py5.P2D)
+            temp_pg.begin_draw()
+            temp_pg.image_mode(py5.CENTER)
+            temp_pg.image(file, 0, 0, scaled_width, scaled_height)
+            temp_pg.end_draw()
+            #pg_files_tiles.append(temp_pg)
+            color_matrix(temp_pg, True, file_index)
+            file_index = file_index+1
+            #return pg_files_tiles      
+                      
 def color_matrix(pg, store_matrices = False, index = None, matrices = None):
     matrix = [[0 for _ in range(4)] for _ in range(MATRIX_X * MATRIX_Y)]
     inner_index = 0
@@ -185,6 +214,7 @@ def store_matrix(index, matrix):
     logger.info("Matrix successfully stored")
 
 def rasterize(pg):
+
     frame_index = 0
     for y in range(0, SIZE_H, TILE_H):
         for x in range(0, SIZE_W, TILE_W):
@@ -196,7 +226,21 @@ def rasterize(pg):
             pg.translate(x, y)
             #Reload file image and place
             file = py5.load_image(FILES[int(index[0][0])])
-            pg.image(file, 0, 0, TILE_W, TILE_H)
+            if OVERRIDE_ASPECT_RATIO:
+                 pg.image(file, 0, 0, TILE_W, TILE_H)
+            else:                 
+                img_aspect_ratio = file.width / float(file.height)
+                tile_aspect_ratio = TILE_W / float(TILE_H)
+            
+                if img_aspect_ratio > tile_aspect_ratio:
+                    scale_factor = TILE_W / float(file.width)
+                else:                    
+                    scale_factor = TILE_H / float(file.height)
+
+                scaled_width = int(file.width * scale_factor)
+                scaled_height = int(file.height * scale_factor)
+                pg.image_mode(py5.CENTER)
+                pg.image(file, 0, 0, scaled_width, scaled_height)
             pg.pop_matrix()
             pg.end_draw()
             frame_index = frame_index+1
@@ -211,6 +255,8 @@ def latest_file(path):
     latest_file = max(list_of_files, key=os.path.getctime)
     return latest_file
 
+
+''' #Apparently incompatible with py5 :(
 # Create a Gradio interface
 def start_rasterization():
     # Return the path to the latest file in the `data/outputs` folder
@@ -237,7 +283,9 @@ with gr.Blocks() as gradio_interface:
         #inputs=[size_w, size_h, matrix_x, matrix_y, tile_x, tile_y, start_button],
         outputs=output_image
     )           
+'''
+
 
 if __name__ == "__main__":
     py5.run_sketch()
-    gradio_interface.launch()
+    #gradio_interface.launch()

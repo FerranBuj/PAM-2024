@@ -78,7 +78,7 @@ def collect_image_urls():
             if src:
                 image_urls.add(src)
         
-        new_height = driver.execute_script("return document.body.scrollHeight")c
+        new_height = driver.execute_script("return document.body.scrollHeight")
         if new_height == last_height:
             break
         last_height = new_height
