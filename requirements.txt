@@ -1,1 +1,3 @@
 chromadb==0.4.23
+logutils-serpucga==0.1.9
+py5==0.10.0a0
