@@ -14,10 +14,6 @@ from constants import(
         OVERRIDE_ASPECT_RATIO
 )
 
-import gradio as gr
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-
 from db_utils import get_chroma_client
 from logutils import get_logger
 logger = get_logger("main")
@@ -25,7 +21,7 @@ logger = get_logger("main")
 #variables initialized in settings and setup must be declared as globals
 pg_frame_tiles = []
 frame_matrices = []
-#files_in_use = []
+
 collection = None
 def settings():
     py5.size(120, 1, py5.P2D) #settings() allows passing variables to py.size() width and height.
@@ -37,11 +33,13 @@ def setup():
     client = get_chroma_client()
 
     printer(f"\n-------------\n tiles_x:{TILE_X} tiles_y:{TILE_Y}\n matrix_x: {MATRIX_X} matrix_y: {MATRIX_Y} \n override_aspect_ratio: {OVERRIDE_ASPECT_RATIO}\n-------------")
-
+    if(TILE_W < 1 or TILE_H <1 or MATRIX_W<1 or MATRIX_H<1):
+        printer("SIZE VALUES ARE TOO SMALL")
+        printer(f"tile_w: {TILE_W} tile_h: {TILE_H} matrix_w: {MATRIX_W} matrix_h: {MATRIX_H}")
+        exit()
     try:
         collection = client.get_collection(
-            name=COLLECTION_NAME,
-            metadata={"hsnw:space":"l2"}        
+            name=COLLECTION_NAME     
         )
         printer("Chroma collection found")
     except:
@@ -60,7 +58,8 @@ def setup():
 
 
 def draw():
-    global frame_matrices, pg_frame_tiles
+    global frame_matrices, pg_frame_tiles, files_in_use
+    files_in_use = set()
     pg = rasterize(render_pg)
     frame_name = f"data/output/{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
     pg.save(f"{os.path.join(frame_name)}")
@@ -68,7 +67,9 @@ def draw():
     if py5.frame_count < len(FRAMES)-1:
         pg_frame_tiles = []
         frame_matrices = []
+        printer("Initalizing frame")
         pg_frame_tiles, frame_matrices = initialize_frame(FRAMES[py5.frame_count], pg_frame_tiles, frame_matrices)
+        printer("Frame successfully processed")
     logger.info(f"{py5.frame_count}")
 
 def printer(input): #py5 settings() setup() & draw() workaround
@@ -170,26 +171,26 @@ def color_matrix(pg, store_matrices = False, index = None, matrices = None):
 def euclidean_distance(frame_matrix): #for each frame tile, get the closest file tile.
     index = 0
     vector = []
+    n_results = 5
     for rgba in frame_matrix: #matrix_x * matrix_y length
         vector.append(((rgba[0]<< 24) + (rgba[1] << 16) + (rgba[2] << 8) + (rgba[3])))         
-    results = collection.query(
-        query_embeddings=[vector],
-        n_results=1,
-        include=["distances"] #ids are always returned
-    )
 
-    '''
-    j= subtile_index
-    frame tile        file image tile[]   
-        ___________       ___________                     ____         ____
-    |j0|__|__|__| --> |j0|__|__|__|  --> distance += j0-n|rgba| - j0-n|rgba| 
-    |__|__|__|__|     |__|__|__|__|        
-    |__|__|__|__|     |__|__|__|__|
-    |__|__|__|jn|     |__|__|__|jn|
-    '''    
-    #logger.info(f"query color={results['ids']}")        
-           
-    return results["ids"]
+    while True:  # Keep searching until an available index is found
+        results = collection.query(
+            query_embeddings=[vector],
+            n_results=n_results,
+            include=["distances"]  # ids are always returned
+        )
+
+        for index_list in results["ids"]:
+            for index in index_list:
+                if index not in files_in_use:
+                    files_in_use.add(index)
+                    return index
+            
+        # If no available index was found, increase the search scope
+        if(n_results < len(FILES)):
+            n_results += 50 #Performance trade-off?
 
 def debug_setup(pg_frame_tiles):
     index = 0
@@ -220,12 +221,12 @@ def rasterize(pg):
         for x in range(0, SIZE_W, TILE_W):
 
             index = euclidean_distance(frame_matrices[frame_index])
-            logger.info(f"euclidean distance {index[0][0]}")
+            logger.info(f"euclidean distance {index}")
             pg.begin_draw()
             pg.push_matrix()
             pg.translate(x, y)
             #Reload file image and place
-            file = py5.load_image(FILES[int(index[0][0])])
+            file = py5.load_image(FILES[int(index)])
             if OVERRIDE_ASPECT_RATIO:
                  pg.image(file, 0, 0, TILE_W, TILE_H)
             else:                 
@@ -246,44 +247,6 @@ def rasterize(pg):
             frame_index = frame_index+1
 
     return pg 
-
-# Function to find the most recent file in a directory
-def latest_file(path):
-    list_of_files = glob.glob(path) 
-    if not list_of_files:  # if list is empty
-        return None
-    latest_file = max(list_of_files, key=os.path.getctime)
-    return latest_file
-
-
-''' #Apparently incompatible with py5 :(
-# Create a Gradio interface
-def start_rasterization():
-    # Return the path to the latest file in the `data/outputs` folder
-    latest_image = latest_file('data/outputs/*')
-    return latest_image, gr.update(value=[latest_image, latest_image])  # Example update
-
-# Setting up the Gradio interface
-with gr.Blocks() as gradio_interface:
-    with gr.Column():
-        SIZE_W = gr.Number(label="Width (size_w)", value=3840)
-        SIZE_H = gr.Number(label="Height (size_h)", value=2160)
-        MATRIX_X = gr.Number(label="Matrix X (matrix_x)", value=8)
-        MATRIX_Y = gr.Number(label="Matrix Y (matrix_y)", value=8)
-        TILE_X = gr.Number(label="Tile X (tile_x)", value=40)
-        TILE_Y = gr.Number(label="Tile Y (tile_y)", value=60)
-        start_button = gr.Button("Start Rasterization")
-        
-    
-    output_image = gr.Image(label="Output Image")
-    examples = gr.Examples(examples=[f"{FRAMES[0]}.jpg"], inputs=start_button, outputs=output_image, fn=lambda x: x)
-    
-    start_button.click(
-        fn=start_rasterization,
-        #inputs=[size_w, size_h, matrix_x, matrix_y, tile_x, tile_y, start_button],
-        outputs=output_image
-    )           
-'''
 
 
 if __name__ == "__main__":

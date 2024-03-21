@@ -1,12 +1,9 @@
 {   
-    "size_w":720,
-    "size_h":480,
+    "size_w":3840,
+    "size_h":2160,
     "matrix_x":10,
     "matrix_y":10,
-    "tile_x":32,
-    "tile_y":16,
-    "api_key": "AIzaSyDfUyT-50F5IVZEoA1tArioMvbraQgD1KE",
-    "search_engine_id":"7030aacf110704924",
-    "webdriver":"webdriver/chromedriver-win32/chromedriver.exe",
+    "tile_x":60,
+    "tile_y":80,
     "override_aspect_ratio": true
 }
