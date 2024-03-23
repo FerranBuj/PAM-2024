@@ -20,11 +20,14 @@ MATRIX_X = config["matrix_x"]
 MATRIX_Y = config["matrix_y"]
 MATRIX_W = int(TILE_W/MATRIX_X)
 MATRIX_H = int(TILE_H/MATRIX_Y)
-FRAMES = glob.glob(os.path.join("data/frames/*"))
+#FRAMES = glob.glob(os.path.join("data/frames/*"))
+FRAMES = glob.glob(os.path.join("data/frames_demo/*"))
+
 FILES = glob.glob(os.path.join("data/downloads/*"))
 COLLECTION_PATH = os.path.join("chromadb/collection")
 OVERRIDE_ASPECT_RATIO = config["override_aspect_ratio"]
 COLLECTION_NAME = f"{TILE_X}{TILE_Y}{MATRIX_X}{MATRIX_Y}{OVERRIDE_ASPECT_RATIO}"
+COLLECTION_NAME = f"{SIZE_W}_{SIZE_H}_{TILE_X}{TILE_Y}{MATRIX_X}{MATRIX_Y}{OVERRIDE_ASPECT_RATIO}"
 
 #SCRAPER CONSTANTS
 API_KEY = scraper_config['api_key']

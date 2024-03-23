@@ -61,7 +61,7 @@ def draw():
     global frame_matrices, pg_frame_tiles, files_in_use
     files_in_use = set()
     pg = rasterize(render_pg)
-    frame_name = f"data/output/{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
+    frame_name = f"data/output/{SIZE_W}_{SIZE_H}_{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
     pg.save(f"{os.path.join(frame_name)}")
 
     if py5.frame_count < len(FRAMES)-1:
