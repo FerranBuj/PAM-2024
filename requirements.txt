@@ -1,3 +1,5 @@
-chromadb==0.4.23
 logutils-serpucga==0.1.9
-py5==0.10.0a0
+selenium == 4.18.1
+gradio==4.21.0
+watchdog== 4.0.0
+beautifulsoup4==4.12.2

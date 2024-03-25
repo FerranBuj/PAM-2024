@@ -1,9 +1,5 @@
+config
 data
-chromadb
-scraper
-config.json
-deprecated
-notes.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
