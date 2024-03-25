@@ -6,9 +6,7 @@ import os
 import time
 import psutil
 import glob
-FILES_PATH = glob.glob("data/downloads/*")
-
-
+FILES_PATH = glob.glob("data/downloads_second_batch/*")
 
 def sanitize_files(FILES_PATH, max_attempts=4, wait_seconds=1):
     deletion_queue = []

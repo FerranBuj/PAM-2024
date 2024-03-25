@@ -1,9 +1,0 @@
-{   
-    "size_w":3840,
-    "size_h":2160,
-    "matrix_x":10,
-    "matrix_y":10,
-    "tile_x":60,
-    "tile_y":80,
-    "override_aspect_ratio": true
-}

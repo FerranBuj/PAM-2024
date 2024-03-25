@@ -1,5 +1,5 @@
 {
-    "scraper_path":"data/downloads_second_batch",
+    "scraper_path":"data/downloads",
     "api_key": "AIzaSyDfUyT-50F5IVZEoA1tArioMvbraQgD1KE",
     "search_engine_id":"7030aacf110704924",
     "webdriver":"webdriver/chromedriver-win32/chromedriver.exe"

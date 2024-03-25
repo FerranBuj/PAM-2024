@@ -20,13 +20,10 @@ from watchdog.events import FileSystemEventHandler
 
 from logutils import get_logger
 from constants import (
-    WEBDRIVER
-)
-
-from constants import (
+    WEBDRIVER,
     SCRAPER_PATH
-
 )
+
 logger = get_logger("custom_web_scraper")
 
 def image_content_hash(image_content):
@@ -36,32 +33,36 @@ def image_content_hash(image_content):
     return hashlib.sha256(image_content).hexdigest()
 
 def download_and_process_image(url):
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            image_content = response.content
-            # Generate a hashcode from the image content
-            content_hash = image_content_hash(image_content)
-            
-            # Open the image directly from the response bytes
-            image = Image.open(BytesIO(image_content))
-            # Convert image to RGB (in case it's not in that mode, making it compatible with JPG format)
-            image = image.convert('RGB')
-            
-            # Calculate new size respecting the aspect ratio
-            if image.width > 480:
-                new_height = int((480 / image.width) * image.height)
-                image = image.resize((480, new_height), Image.ANTIALIAS)
-            
-            # Generate a filename based on the content hash
-            filename = content_hash + '.jpg'
-            filepath = os.path.join(SCRAPER_PATH, filename)
-            
-            # Save the processed image
-            image.save(filepath, 'JPEG')
-            logger.info(f"Downloaded and processed {filepath}")
-    except Exception as e:
-        logger.info(f"Could not process {url}. Reason: {e}.")
+    """
+    Modified function to safely handle dynamically updated URLs using session object.
+    """
+    with requests.Session() as session:
+        try:
+            response = session.get(url, timeout=5)  # Using session for persistent settings
+            if response.status_code == 200:
+                image_content = response.content
+                # Generate a hashcode from the image content
+                content_hash = image_content_hash(image_content)
+                
+                # Open the image directly from the response bytes
+                image = Image.open(BytesIO(image_content))
+                # Convert image to RGB (in case it's not in that mode, making it compatible with JPG format)
+                image = image.convert('RGB')
+                
+                # Calculate new size respecting the aspect ratio
+                if image.width > 480:
+                    new_height = int((480 / image.width) * image.height)
+                    image = image.resize((480, new_height), Image.ANTIALIAS)
+                
+                # Generate a filename based on the content hash
+                filename = content_hash + '.jpg'
+                filepath = os.path.join(SCRAPER_PATH, filename)
+                
+                # Save the processed image
+                image.save(filepath, 'JPEG')
+                logger.info(f"Downloaded and processed {filepath}")
+        except Exception as e:
+            logger.info(f"Could not process {url}. Reason: {e}.")
 
 def collect_image_urls(URL):
     # Setup the driver. This one uses Chrome with the path to your ChromeDriver.
@@ -76,7 +77,7 @@ def collect_image_urls(URL):
     driver.get(URL)
     try:
         # Waiting for the div that contains "Aceptar todo" to be clickable
-        accept_button = WebDriverWait(driver, 10).until(
+        accept_button = WebDriverWait(driver, 30).until(
             EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'QS5gu') and contains(@class, 'sy4vM') and text()='Aceptar todo']"))
         )
         accept_button.click()
@@ -89,7 +90,7 @@ def collect_image_urls(URL):
     last_height = driver.execute_script("return document.body.scrollHeight")
     while True:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(100)  # Adjust delay as needed
+        time.sleep(0.1)  # Adjust delay as needed
         
         # Find all image elements and extract the src attributes
         images = driver.find_elements(By.TAG_NAME, 'img')
@@ -106,20 +107,28 @@ def collect_image_urls(URL):
     driver.quit()
     return image_urls
 
-def download_images(URL):
+def download_images(URLS):
     if not os.path.exists(SCRAPER_PATH):
         os.makedirs(SCRAPER_PATH)
 
-    #TODO Improve scraping
-    image_urls = collect_image_urls(URL)
-    for src in image_urls:
-        if not 'google' in src:
-            download_and_process_image(src)
-        else:
-            logger.info(f"Skipping Google-related image: {src}")
-    latest_image = latest_image_for_display()        
-    return latest_image, gr.update(value=[latest_image, latest_image])  # Example updat
+    for URL in URLS.split(','):  # Assuming URLs are separated by commas
+        URL = URL.strip() 
+        attemps=1
+        #TODO Improve scraping
+        while attemps < 10:
+            try:
+                image_urls = collect_image_urls(URL)
+                for src in image_urls:
+                    if not 'google' in src:
+                        download_and_process_image(src)
+                        latest_image = latest_image_for_display()        
+                        return latest_image, gr.update(value=[latest_image, latest_image]) 
+                    else:
+                        logger.info(f"Skipping Google-related image: {src}")
+            except Exception as e:
+                logger.error(f"Attempt {attemps} failed")
 
+            attemps = attemps+1
 
 # Function to find the most recent file in a directory
 def latest_file(path):
@@ -128,7 +137,6 @@ def latest_file(path):
         return None
     latest_file = max(list_of_files, key=os.path.getctime)
     return latest_file
-
 
 def latest_image_for_display():
     """
@@ -147,20 +155,16 @@ def download_images_wraper(URL):
     download_images(URL)
     return latest_file(URL)
 
-with gr.Blocks() as gradio_interface:
-    
-    URL = gr.Textbox(label="URL", value="Enter URL", placeholder="Enter URL")
+with gr.Blocks() as gradio_interface: 
+    URLS = gr.Textbox(label="URLs", value="Enter URLs separated by commas", placeholder="Enter URLs separated by commas")
     start_button = gr.Button("Start Scraping")
         
-    output_image = gr.Image(label="latest image")
-    #examples = gr.Examples(examples=latest_file(f"{SCRAPER_PATH}*"), inputs=start_button, outputs=output_image, fn=lambda x: x)
-    
+    output_image = gr.Image(label="Latest Image")    
     start_button.click(
         fn=download_images_wraper,
-        inputs=URL,
+        inputs=URLS,
         outputs=output_image
     )           
             
-
 if __name__ == "__main__":
     gradio_interface.launch()

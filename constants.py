@@ -2,10 +2,10 @@ import json
 import os
 import glob
 from pathlib import Path
-with open("config.json") as c:
+with open("config/config.json") as c:
     config = json.load(c)
 
-with open("scraper_config.json") as c:
+with open("config/scraper_config.json") as c:
     scraper_config = json.load(c)
 
 #RASTERIZATION CONSTANTS
@@ -20,13 +20,13 @@ MATRIX_X = config["matrix_x"]
 MATRIX_Y = config["matrix_y"]
 MATRIX_W = int(TILE_W/MATRIX_X)
 MATRIX_H = int(TILE_H/MATRIX_Y)
-#FRAMES = glob.glob(os.path.join("data/frames/*"))
-FRAMES = glob.glob(os.path.join("data/frames_demo/*"))
 
+FRAMES = glob.glob(os.path.join(f"data/frames/{config['frames_folder_name']}/*"))
+OUTPUT_PATH = f"data/{config['frames_folder_name']}"
 FILES = glob.glob(os.path.join("data/downloads/*"))
-COLLECTION_PATH = os.path.join("chromadb/collection")
+
 OVERRIDE_ASPECT_RATIO = config["override_aspect_ratio"]
-COLLECTION_NAME = f"{TILE_X}{TILE_Y}{MATRIX_X}{MATRIX_Y}{OVERRIDE_ASPECT_RATIO}"
+COLLECTION_PATH = os.path.join("chromadb/collection")
 COLLECTION_NAME = f"{SIZE_W}_{SIZE_H}_{TILE_X}{TILE_Y}{MATRIX_X}{MATRIX_Y}{OVERRIDE_ASPECT_RATIO}"
 
 #SCRAPER CONSTANTS

@@ -11,7 +11,8 @@ from constants import(
         MATRIX_W, MATRIX_H,
         FRAMES, FILES,
         COLLECTION_NAME,
-        OVERRIDE_ASPECT_RATIO
+        OVERRIDE_ASPECT_RATIO,
+        OUTPUT_PATH
 )
 
 from db_utils import get_chroma_client
@@ -61,7 +62,7 @@ def draw():
     global frame_matrices, pg_frame_tiles, files_in_use
     files_in_use = set()
     pg = rasterize(render_pg)
-    frame_name = f"data/output/{SIZE_W}_{SIZE_H}_{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
+    frame_name = f"{OUTPUT_PATH}/{SIZE_W}_{SIZE_H}_{TILE_X}_{TILE_Y}_{MATRIX_X}_{MATRIX_Y}_oar_{OVERRIDE_ASPECT_RATIO}_frame_count_{py5.frame_count}.png"
     pg.save(f"{os.path.join(frame_name)}")
 
     if py5.frame_count < len(FRAMES)-1:
@@ -70,6 +71,10 @@ def draw():
         printer("Initalizing frame")
         pg_frame_tiles, frame_matrices = initialize_frame(FRAMES[py5.frame_count], pg_frame_tiles, frame_matrices)
         printer("Frame successfully processed")
+    else: 
+        logger.info("Rasterization completed")
+        py5.no_loop()
+        exit()
     logger.info(f"{py5.frame_count}")
 
 def printer(input): #py5 settings() setup() & draw() workaround
