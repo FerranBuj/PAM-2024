@@ -1,6 +1,6 @@
 <h1 style="text-align: center;">Retrieval-Augmented Rasterization</h1>
 
-![image info](./3840_2560_53_80_10_10_oar_True_frame_count_4.png)
+![image info](./sample_image.png)
 
 # Special Requirements
 Python 3.10.4
